@@ -81,7 +81,7 @@
     class ChatBox extends Polymer.Element {
       connectedCallback() {
         super.connectedCallback();
-        var socket = new WebSocket(this.socketServer);
+        var socket = new WebSocket(this.socketserver);
         const chat = this;
         socket.onopen = function(){
           chat.push('messages',new Message("Status: Connected","system"));
