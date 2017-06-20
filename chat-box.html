@@ -1,0 +1,159 @@
+<!--suppress JSAnnotator -->
+<link rel="import" href="../polymer/polymer-element.html">
+<link rel="import" href="../paper-input/paper-textarea.html">
+
+<dom-module id="chat-box">
+  <template>
+    <style>
+      :host {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        height:100%;
+        padding:1rem;
+      }
+      h2{
+        margin:0rem;
+      }
+      #input{
+        max-height:2rem;
+      }
+      #outputView{
+        height: 10rem;
+        overflow: auto;
+        padding: 0px 15px;
+      }
+      #output {
+        display:flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+      }
+      .system{}
+      pre {
+        max-width: 11rem;
+        white-space: pre-wrap;       /* Since CSS 2.1 */
+        white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+        white-space: -pre-wrap;      /* Opera 4-6 */
+        white-space: -o-pre-wrap;    /* Opera 7 */
+        word-wrap: break-word;
+
+        padding: 1rem;
+        border-radius: 1rem;
+      }
+      .sent{
+        background-color: #dddddd;
+      }
+      .received{
+        background-color: #2f9c0a;
+        color: white;
+        align-self: flex-end;
+      }
+    </style>
+    <h2>[[title]]</h2>
+    <div id="outputView">
+      <div id="output">
+        <template is="dom-repeat" items="[[messages]]">
+          <pre class$="[[item.type]]">[[item.text]]</pre>
+        </template>
+      </div>
+    </div>
+      <paper-textarea
+        id="input"
+        value="{{text}}"
+        max-rows="1"
+        placeholder="Enter message"
+        on-keydown="keyPressed"
+        on-keyup="keyReleased"
+      ></paper-textarea>
+  </template>
+
+  <script>
+    /**
+     * `chat-box`
+     * A chat box using web sockets
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+
+    class ChatBox extends Polymer.Element {
+      connectedCallback() {
+        super.connectedCallback();
+        var socket = new WebSocket(this.socketServer);
+        const chat = this;
+        socket.onopen = function(){
+          chat.push('messages',new Message("Status: Connected","system"));
+        };
+        socket.onmessage = function(e){
+          chat.push('messages', new Message(e.data,'received'));
+        };
+        this.socket = socket;
+
+        this.$.output.addEventListener('dom-change', this._listUpdate);
+      }
+      disconnectedCallback() {
+        this.$.output.removeAllListeners();
+        this.socket.close();
+      }
+      static get is() { return 'chat-box'; }
+      static get properties() {
+        return {
+          title: {
+            type: String,
+            value: "Chat",
+          },
+          text: {
+            type: String,
+            value: "",
+          },
+          messages: {
+            type:Array,
+            value:[],
+          },
+          socketServer: {
+            type: String,
+            value: "wss://echo.websocket.org"
+          }
+        };
+      }
+
+      constructor() {
+        super();
+        this._listUpdate = () => {
+          this.$.outputView.scrollTop = this.$.outputView.scrollHeight;
+        }
+        this.shiftDown = false;
+      }
+
+      keyPressed(e) {
+        if (e.keyCode === 13 && !this.shiftDown) {
+          if (this.text) {
+            this.messages.push(new Message(this.text, 'sent'));
+            this.socket.send(this.text);
+            this.text = "";
+          }
+          e.preventDefault();
+        }else if (e.keyCode == 16) {
+          this.shiftDown = true;
+        }
+      }
+
+      keyReleased(e) {
+        if (e.keyCode === 16) {
+          this.shiftDown = false;
+        }
+      }
+    }
+
+    class Message {
+      constructor(text, type) {
+        this.text = text;
+        this.type = type;
+      }
+    }
+
+    window.customElements.define(ChatBox.is, ChatBox);
+  </script>
+</dom-module>
